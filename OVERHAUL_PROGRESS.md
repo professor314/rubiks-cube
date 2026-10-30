@@ -22,4 +22,8 @@ Branch: `feature/ui-and-trainer-overhaul`
 - **TB1** ✅ stats.py (ao5/ao12/PB, DNF, JSON) + lazy __init__ · 13 tests pass
 - **TB2** ✅ session.py (atomic JSON store + scramble-of-the-day) · +10 tests (23 total)
 - **TB3** ✅ test_engine.py (algebraic move properties, importorskip numpy) · whole tree ruff-clean
-- **TB4** ⏳ rendering overhaul (animation + materials + HUD)
+- **TB4** ✅ render.py (CubeRenderer: animated turns, palette, materials) · +6 render tests
+- **TB5** ✅ controller.py (undo/redo/scramble/reset) · +10 tests · cube_viz rewrite started
+- **TB6** ✅ cube_viz.py rewrite: buttons, help overlay, animation, trainer mode + live stats HUD + persistence
+- **TB7** ⏳ CI + tooling config
+- **TB8** ⏳ README + final pass + PR
