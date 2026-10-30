@@ -88,10 +88,7 @@ class CubeState:
         >>> CubeState.solved().is_solved()
         True
         """
-        for i in range(6):
-            if not np.all(self._facelets[i] == i):
-                return False
-        return True
+        return all(bool(np.all(self._facelets[i] == i)) for i in range(6))
 
     def to_kociemba_string(self) -> str:
         """Convert to 54-character string for Kociemba solver input.
@@ -117,14 +114,16 @@ class CubeState:
                 for col in range(3):
                     color = int(face[row, col])
                     # Map internal color index to Kociemba face character
-                    chars.append(_KOCIEMBA_FACE_CHARS[_KOCIEMBA_FACE_ORDER.index(color)])
+                    chars.append(
+                        _KOCIEMBA_FACE_CHARS[_KOCIEMBA_FACE_ORDER.index(color)]
+                    )
         return "".join(chars)
 
     # Keep backward-compatible alias
     to_string = to_kociemba_string
 
     @classmethod
-    def from_kociemba_string(cls, s: str) -> "CubeState":
+    def from_kociemba_string(cls, s: str) -> CubeState:
         """Parse a 54-character Kociemba string back into a CubeState.
 
         The string must be ordered U R F D L B, with each character being

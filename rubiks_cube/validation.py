@@ -19,7 +19,9 @@ from .cube_state import B, CubeState, D, F, L, R, U
 #
 # Corner positions (8 corners):
 # URF, UFL, ULB, UBR, DFR, DLF, DBL, DRB
-_CORNERS: list[tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]]] = [
+_CORNERS: list[
+    tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]]
+] = [
     # URF: U[2,2], R[0,0], F[0,2]
     ((U, 2, 2), (R, 0, 0), (F, 0, 2)),
     # UFL: U[2,0], F[0,0], L[0,2]
@@ -213,7 +215,7 @@ def is_valid_state(state: CubeState) -> bool:
     # Check 2: Identify corners and compute orientations
     corner_perm: list[int] = []
     corner_orient_sum = 0
-    for i, (pos1, pos2, pos3) in enumerate(_CORNERS):
+    for pos1, pos2, pos3 in _CORNERS:
         c1 = _get_facelet(state, pos1)
         c2 = _get_facelet(state, pos2)
         c3 = _get_facelet(state, pos3)
@@ -241,7 +243,7 @@ def is_valid_state(state: CubeState) -> bool:
     # Check 3: Identify edges and compute orientations
     edge_perm: list[int] = []
     edge_orient_sum = 0
-    for i, (pos1, pos2) in enumerate(_EDGES):
+    for pos1, pos2 in _EDGES:
         c1 = _get_facelet(state, pos1)
         c2 = _get_facelet(state, pos2)
         colors = (c1, c2)
@@ -268,7 +270,4 @@ def is_valid_state(state: CubeState) -> bool:
     # Check 4: Permutation parities must match
     corner_par = _parity(corner_perm)
     edge_par = _parity(edge_perm)
-    if corner_par != edge_par:
-        return False
-
-    return True
+    return corner_par == edge_par
