@@ -19,4 +19,7 @@ Branch: `feature/ui-and-trainer-overhaul`
 - [ ] **TB8** — README overhaul, docstrings, final lint/type pass, open PR
 
 ## Completed log
-(entries added as each timeblock finishes)
+- **TB1** ✅ stats.py (ao5/ao12/PB, DNF, JSON) + lazy __init__ · 13 tests pass
+- **TB2** ✅ session.py (atomic JSON store + scramble-of-the-day) · +10 tests (23 total)
+- **TB3** ✅ test_engine.py (algebraic move properties, importorskip numpy) · whole tree ruff-clean
+- **TB4** ⏳ rendering overhaul (animation + materials + HUD)
