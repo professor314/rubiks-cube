@@ -268,7 +268,4 @@ def is_valid_state(state: CubeState) -> bool:
     # Check 4: Permutation parities must match
     corner_par = _parity(corner_perm)
     edge_par = _parity(edge_perm)
-    if corner_par != edge_par:
-        return False
-
-    return True
+    return corner_par == edge_par

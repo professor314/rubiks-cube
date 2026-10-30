@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .cube_state import CubeState, U, D, L, R, F, B
+from .cube_state import B, CubeState, D, F, L, R, U
 from .moves import Move, apply_move, apply_sequence, move_to_string
 from .scrambler import generate_scramble
 

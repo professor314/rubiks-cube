@@ -124,7 +124,7 @@ class CubeState:
     to_string = to_kociemba_string
 
     @classmethod
-    def from_kociemba_string(cls, s: str) -> "CubeState":
+    def from_kociemba_string(cls, s: str) -> CubeState:
         """Parse a 54-character Kociemba string back into a CubeState.
 
         The string must be ordered U R F D L B, with each character being
