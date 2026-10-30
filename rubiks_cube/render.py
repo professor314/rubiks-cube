@@ -43,7 +43,14 @@ _GAP = 0.08  # gap between facelets (fraction of a unit cell)
 _FACE_AXIS: dict[int, int] = {U: 1, D: 1, L: 0, R: 0, F: 2, B: 2}
 _FACE_CW_SIGN: dict[int, float] = {U: -1.0, D: 1.0, L: 1.0, R: -1.0, F: -1.0, B: 1.0}
 # Plane coordinate (on the rotation axis) of the moving layer's outer face.
-_FACE_LAYER_COORD: dict[int, float] = {U: 1.5, D: -1.5, L: -1.5, R: 1.5, F: 1.5, B: -1.5}
+_FACE_LAYER_COORD: dict[int, float] = {
+    U: 1.5,
+    D: -1.5,
+    L: -1.5,
+    R: 1.5,
+    F: 1.5,
+    B: -1.5,
+}
 
 
 def facelet_vertices(face: int, row: int, col: int) -> NDArray[np.float64]:

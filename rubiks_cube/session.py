@@ -10,6 +10,7 @@ Pure-Python (no numpy) so it runs and tests anywhere. Provides:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import random
@@ -79,10 +80,8 @@ class SessionStore:
             os.replace(tmp_name, self.path)
         except BaseException:
             # Clean up the temp file on any failure.
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_name)
-            except OSError:
-                pass
             raise
 
 

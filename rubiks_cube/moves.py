@@ -112,7 +112,6 @@ def _apply_move_cw(facelets: NDArray[np.int8], face: int) -> None:
         _cycle4(facelets, cycle)
 
 
-
 # Edge strip cycles for each face's CW rotation.
 # Each face has 3 four-cycles representing the 12 stickers on adjacent faces.
 # _cycle4([a, b, c, d]) rotates values: a->b->c->d->a
@@ -159,7 +158,6 @@ _EDGE_CYCLES: dict[int, list[list[tuple[int, int, int]]]] = {
         [(U, 0, 0), (L, 2, 0), (D, 2, 2), (R, 0, 2)],
     ],
 }
-
 
 
 # Map Move enum to (face_index, rotation_count)

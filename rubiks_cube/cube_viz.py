@@ -30,8 +30,18 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # Keyboard: key -> move notation. Lowercase = CW, mapped set = CCW.
 _KEY_TO_MOVE_STR: dict[str, str] = {
-    "u": "U", "d": "D", "l": "L", "r": "R", "f": "F", "b": "B",
-    "i": "U'", "k": "D'", "j": "L'", ";": "R'", "h": "F'", "n": "B'",
+    "u": "U",
+    "d": "D",
+    "l": "L",
+    "r": "R",
+    "f": "F",
+    "b": "B",
+    "i": "U'",
+    "k": "D'",
+    "j": "L'",
+    ";": "R'",
+    "h": "F'",
+    "n": "B'",
 }
 
 _HELP_TEXT = (
@@ -74,12 +84,24 @@ def run_rubiks_cube() -> None:
     renderer.draw(controller.state)
 
     hud = fig.text(
-        0.5, 0.135, "", ha="center", va="top", fontsize=10,
-        family="monospace", color="#E8E8E8",
+        0.5,
+        0.135,
+        "",
+        ha="center",
+        va="top",
+        fontsize=10,
+        family="monospace",
+        color="#E8E8E8",
     )
     help_box = fig.text(
-        0.5, 0.5, _HELP_TEXT, ha="center", va="center", fontsize=10,
-        family="monospace", color="#F2F2F2",
+        0.5,
+        0.5,
+        _HELP_TEXT,
+        ha="center",
+        va="center",
+        fontsize=10,
+        family="monospace",
+        color="#F2F2F2",
         bbox={"boxstyle": "round", "facecolor": "#1C1F24", "edgecolor": "#3A3F47"},
         visible=False,
     )
