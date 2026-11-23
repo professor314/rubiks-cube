@@ -20,7 +20,11 @@ dependencies = [
 
 [project.optional-dependencies]
 solver = ["kociemba"]
-dev = ["pytest>=7.0", "ruff>=0.1"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
 
 [project.scripts]
 rubiks-cube = "rubiks_cube.cube_viz:run_rubiks_cube"
@@ -28,3 +32,34 @@ rubiks-cube = "rubiks_cube.cube_viz:run_rubiks_cube"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["rubiks_cube*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "SIM", "RUF", "PL", "B"]
+ignore = [
+    "PLR2004",  # magic-value comparisons are fine in tests/geometry
+    "PLR0915",  # the interactive app loop is intentionally long
+    "PLR0912",  # ...and has many branches (key/button handlers)
+    "PLC0415",  # lazy/local imports are intentional (keep modules numpy-free)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use pytest.importorskip before importing numpy-backed modules, which
+# legitimately requires module-level imports after a statement (E402).
+"tests/*" = ["PLR2004", "E402"]
+# Sequential validity checks read most clearly as a series of early returns.
+"rubiks_cube/validation.py" = ["PLR0911"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = false
+ignore_missing_imports = true
+disallow_untyped_defs = false
+files = ["rubiks_cube"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
