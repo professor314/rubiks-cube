@@ -55,10 +55,9 @@ class Move(Enum):
 def _rotate_face_cw(facelets: NDArray[np.int8], face: int) -> None:
     """Rotate a face 90° CW (looking from outside the cube) in-place.
 
-    The numpy rotation direction depends on grid coordinate orientation:
-    - U face: row 0 = back edge, so CW-from-above is np.rot90(k=1).
-    - D, F, R, L, B faces: row 0 is the edge nearest the viewer when
-      looking from outside, so CW-from-outside is np.rot90(k=-1).
+    Every face grid is stored as it looks when viewed from outside the cube
+    (U: back edge on top, D: front edge on top), so a clockwise turn is always
+    np.rot90(k=-1).
 
     Parameters
     ----------
@@ -67,10 +66,7 @@ def _rotate_face_cw(facelets: NDArray[np.int8], face: int) -> None:
     face : int
         Index of the face to rotate (0-5).
     """
-    if face == U:
-        facelets[face] = np.rot90(facelets[face], k=1)
-    else:
-        facelets[face] = np.rot90(facelets[face], k=-1)
+    facelets[face] = np.rot90(facelets[face], k=-1)
 
 
 def _cycle4(
@@ -121,11 +117,11 @@ def _apply_move_cw(facelets: NDArray[np.int8], face: int) -> None:
 # behind the cube (B[0,:] is top, but "left" from back = "right" from front).
 
 _EDGE_CYCLES: dict[int, list[list[tuple[int, int, int]]]] = {
-    # U face CW from above: F-top -> R-top -> B-top -> L-top
+    # U face CW from above: F-top -> L-top -> B-top -> R-top
     U: [
-        [(F, 0, 0), (R, 0, 0), (B, 0, 0), (L, 0, 0)],
-        [(F, 0, 1), (R, 0, 1), (B, 0, 1), (L, 0, 1)],
-        [(F, 0, 2), (R, 0, 2), (B, 0, 2), (L, 0, 2)],
+        [(F, 0, 0), (L, 0, 0), (B, 0, 0), (R, 0, 0)],
+        [(F, 0, 1), (L, 0, 1), (B, 0, 1), (R, 0, 1)],
+        [(F, 0, 2), (L, 0, 2), (B, 0, 2), (R, 0, 2)],
     ],
     # D face CW from below: F-bottom -> R-bottom -> B-bottom -> L-bottom
     D: [

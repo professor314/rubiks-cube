@@ -66,11 +66,11 @@ def facelet_vertices(face: int, row: int, col: int) -> NDArray[np.float64]:
 
     if face == U:  # y = 1.5 plane
         x0, x1 = -1.5 + col + lo, -1.5 + col + hi
-        z0, z1 = -1.5 + (2 - row) + lo, -1.5 + (2 - row) + hi
+        z0, z1 = -1.5 + row + lo, -1.5 + row + hi
         v = [[x0, 1.5, z0], [x1, 1.5, z0], [x1, 1.5, z1], [x0, 1.5, z1]]
     elif face == D:  # y = -1.5 plane
         x0, x1 = -1.5 + col + lo, -1.5 + col + hi
-        z0, z1 = -1.5 + row + lo, -1.5 + row + hi
+        z0, z1 = -1.5 + (2 - row) + lo, -1.5 + (2 - row) + hi
         v = [[x0, -1.5, z0], [x1, -1.5, z0], [x1, -1.5, z1], [x0, -1.5, z1]]
     elif face == F:  # z = 1.5 plane
         x0, x1 = -1.5 + col + lo, -1.5 + col + hi

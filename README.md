@@ -33,7 +33,7 @@ rubiks-cube
 python -m rubiks_cube.cube_viz
 ```
 
-Press **`?`** in the window at any time for the full control list.
+The controls are always listed in a panel on the left of the window (press **`?`** to hide or show it).
 
 ## Controls
 
@@ -42,11 +42,18 @@ Press **`?`** in the window at any time for the full control list.
 | `u d l r f b` | Clockwise face turns | | `s` | Scramble |
 | `i k j ; h n` | Counter-clockwise (U' D' L' R' F' B') | | `space` | Solve |
 | `z` | Undo | | `y` | Redo |
-| `t` | Toggle trainer mode | | `?` | Toggle help overlay |
+| `t` | Toggle trainer mode | | `?` | Hide/show the controls panel |
 | `q` | Quit | | mouse drag | Rotate the 3D view |
 
 On-screen buttons (**Scramble / Solve / Reset / Undo / Redo / Trainer**) mirror
 the keyboard actions.
+
+## Solve
+
+**Solve** (`space`) finds a solution with the Kociemba solver, shows the move
+list in the window, and plays the moves on the cube one at a time with the
+current move in `[brackets]`. The list is also printed to the terminal. A solve
+made this way is never timed or saved to your trainer stats.
 
 ## Trainer mode
 

@@ -6,7 +6,8 @@ Ties together the engine (:mod:`rubiks_cube.controller`), the renderer
 
 - animated face turns,
 - on-screen buttons (Scramble / Solve / Reset / Undo / Redo / Trainer),
-- keyboard controls with a toggleable help overlay,
+- a solver that shows its move list in the window and animates it,
+- keyboard controls, always listed in a panel on the left of the window,
 - a live HUD (state, last move, move count, timer),
 - trainer mode: timed solves recorded to a persistent stats file with
   ao5 / ao12 / personal-best display.
@@ -17,6 +18,7 @@ in environments without them; only :func:`run_rubiks_cube` requires them.
 
 from __future__ import annotations
 
+import textwrap
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -44,18 +46,34 @@ _KEY_TO_MOVE_STR: dict[str, str] = {
     "n": "B'",
 }
 
-_HELP_TEXT = (
-    "KEYBOARD\n"
-    "  u d l r f b   clockwise face turns\n"
-    "  i k j ; h n   counter-clockwise (U' D' L' R' F' B')\n"
-    "  s   scramble        space  solve\n"
-    "  z   undo            y      redo\n"
-    "  t   toggle trainer  ?      toggle this help\n"
-    "  q   quit\n\n"
-    "BUTTONS below the cube do the same actions.\n"
-    "TRAINER: press s to start a timed solve; the timer\n"
-    "stops when the cube is solved and the result is saved."
+_CONTROLS_TEXT = (
+    "CONTROLS\n"
+    "\n"
+    "Turn a face clockwise\n"
+    "  u d l r f b\n"
+    "\n"
+    "Turn counter-clockwise\n"
+    "  i = U'   k = D'   j = L'\n"
+    "  ; = R'   h = F'   n = B'\n"
+    "\n"
+    "  s      scramble\n"
+    "  space  solve (shows moves)\n"
+    "  z      undo\n"
+    "  y      redo\n"
+    "  t      trainer on/off\n"
+    "  ?      hide/show this panel\n"
+    "  q      quit\n"
+    "  mouse  drag to rotate view\n"
+    "\n"
+    "U up  D down  L left\n"
+    "R right  F front  B back\n"
+    "\n"
+    "TRAINER: s starts a timed solve,\n"
+    "the timer stops when you solve\n"
+    "it. Using Solve does not count."
 )
+
+_SOLUTION_WRAP = 46  # characters per line in the on-screen solution box
 
 _ANIM_FRAMES = 8  # frames per quarter turn (higher = smoother/slower)
 _ANIM_PAUSE = 0.012  # seconds between frames
@@ -74,18 +92,17 @@ def run_rubiks_cube() -> None:
     stats: SolveStats = store.load()
 
     # --- figure layout -----------------------------------------------------
-    fig = plt.figure(figsize=(8.5, 8.0), num="Rubik's Cube")
+    fig = plt.figure(figsize=(11.0, 8.0), num="Rubik's Cube")
     fig.patch.set_facecolor("#0E0F12")
-    ax = fig.add_subplot(111, projection="3d")
+    ax = fig.add_axes((0.26, 0.30, 0.74, 0.70), projection="3d")
     ax.set_facecolor("#0E0F12")
-    fig.subplots_adjust(left=0.0, right=1.0, top=1.0, bottom=0.16)
 
     renderer = CubeRenderer(ax)
     renderer.draw(controller.state)
 
     hud = fig.text(
-        0.5,
-        0.135,
+        0.63,
+        0.165,
         "",
         ha="center",
         va="top",
@@ -93,17 +110,28 @@ def run_rubiks_cube() -> None:
         family="monospace",
         color="#E8E8E8",
     )
-    help_box = fig.text(
-        0.5,
-        0.5,
-        _HELP_TEXT,
+    # Controls are always visible (press ? to hide/show).
+    controls_box = fig.text(
+        0.015,
+        0.975,
+        _CONTROLS_TEXT,
+        ha="left",
+        va="top",
+        fontsize=9,
+        family="monospace",
+        color="#D5D9E0",
+        bbox={"boxstyle": "round", "facecolor": "#1C1F24", "edgecolor": "#3A3F47"},
+    )
+    # Move list shown while / after the solver runs.
+    solution_box = fig.text(
+        0.63,
+        0.29,
+        "",
         ha="center",
-        va="center",
+        va="top",
         fontsize=10,
         family="monospace",
-        color="#F2F2F2",
-        bbox={"boxstyle": "round", "facecolor": "#1C1F24", "edgecolor": "#3A3F47"},
-        visible=False,
+        color="#8BE9FD",
     )
 
     ui: dict[str, Any] = {
@@ -111,6 +139,7 @@ def run_rubiks_cube() -> None:
         "trainer": False,
         "last_move": "-",
         "animating": False,
+        "busy": False,  # True for the whole solver playback
     }
 
     # --- helpers -----------------------------------------------------------
@@ -122,7 +151,7 @@ def run_rubiks_cube() -> None:
         state_s = "SOLVED" if solved else "scrambled"
         timer_s = ""
         if ui["timer_start"] is not None:
-            timer_s = f" | ⏱ {time.perf_counter() - ui['timer_start']:.1f}s"
+            timer_s = f" | time {time.perf_counter() - ui['timer_start']:.1f}s"
         line1 = (
             f"{state_s}  |  last: {ui['last_move']}  |  moves: "
             f"{controller.move_count}{timer_s}"
@@ -134,7 +163,7 @@ def run_rubiks_cube() -> None:
                 f"ao5:{_fmt(stats.ao5())}  ao12:{_fmt(stats.ao12())}"
             )
         else:
-            line2 = "\n(press t for trainer mode, ? for help)"
+            line2 = "\n(press t for trainer mode)"
         hud.set_text(line1 + line2)
 
     def _redraw() -> None:
@@ -142,10 +171,12 @@ def run_rubiks_cube() -> None:
         _refresh_hud()
         fig.canvas.draw_idle()
 
-    def _animate_move(move: Move) -> None:
-        """Animate a single quarter/half turn, then apply it logically."""
-        if ui["animating"]:
-            return
+    def _locked() -> bool:
+        """True while a move animation or the solver playback is running."""
+        return bool(ui["animating"] or ui["busy"])
+
+    def _play_move(move: Move) -> None:
+        """Animate one move, then apply it to the cube and redraw."""
         ui["animating"] = True
         face = _FACE_OF_MOVE[move]
         qt = _QUARTER_TURNS[move]
@@ -162,6 +193,19 @@ def run_rubiks_cube() -> None:
         ui["last_move"] = move.value
         _redraw()
 
+    def _animate_move(move: Move) -> None:
+        """Animate a single turn requested by the user (ignored while busy)."""
+        if _locked():
+            return
+        _play_move(move)
+
+    def _solution_text(names: list[str], done: int, note: str = "") -> str:
+        """Wrapped move list with the move being played marked in [brackets]."""
+        marked = [f"[{n}]" if i == done else n for i, n in enumerate(names)]
+        header = f"SOLUTION ({len(names)} moves, {min(done, len(names))} done)"
+        body = textwrap.fill(" ".join(marked), width=_SOLUTION_WRAP)
+        return header + "\n" + body + (f"\n{note}" if note else "")
+
     def _record_solve_if_done() -> None:
         if ui["timer_start"] is not None and controller.is_solved():
             elapsed = time.perf_counter() - ui["timer_start"]
@@ -175,8 +219,9 @@ def run_rubiks_cube() -> None:
 
     # --- action callbacks --------------------------------------------------
     def do_scramble(_evt: Any = None) -> None:
-        if ui["animating"]:
+        if _locked():
             return
+        solution_box.set_text("")
         if ui["trainer"]:
             # Deterministic daily scramble in trainer mode.
             from .moves import parse_move_string
@@ -196,29 +241,51 @@ def run_rubiks_cube() -> None:
         _redraw()
 
     def do_solve(_evt: Any = None) -> None:
-        if ui["animating"] or controller.is_solved():
+        if _locked() or controller.is_solved():
             return
         try:
             solution = controller.solve()
         except ImportError:
-            print("Solver unavailable. Install with: pip install kociemba")
+            msg = "Solver unavailable. Install with: pip install kociemba"
+            print(msg)
+            solution_box.set_text(msg)
+            fig.canvas.draw_idle()
             return
+        except ValueError as exc:
+            print(f"Cannot solve: {exc}")
+            solution_box.set_text(f"Cannot solve: {exc}")
+            fig.canvas.draw_idle()
+            return
+        names = [m.value for m in solution]
         print(f"Solution ({len(solution)} moves): {move_to_string(solution)}")
-        controller.apply_solution(solution)
+        # A solver-made solve never counts as a timed attempt.
+        ui["timer_start"] = None
+        ui["busy"] = True
+        try:
+            for i, mv in enumerate(solution):
+                if not plt.fignum_exists(fig.number):
+                    return
+                solution_box.set_text(_solution_text(names, i))
+                _play_move(mv)
+            solution_box.set_text(
+                _solution_text(names, len(names), "Solved! (not timed)")
+            )
+        finally:
+            ui["busy"] = False
         ui["last_move"] = "solve"
-        _record_solve_if_done()
         _redraw()
 
     def do_reset(_evt: Any = None) -> None:
-        if ui["animating"]:
+        if _locked():
             return
+        solution_box.set_text("")
         controller.reset()
         ui["timer_start"] = None
         ui["last_move"] = "-"
         _redraw()
 
     def do_undo(_evt: Any = None) -> None:
-        if ui["animating"]:
+        if _locked():
             return
         mv = controller.undo()
         if mv is not None:
@@ -226,7 +293,7 @@ def run_rubiks_cube() -> None:
             _redraw()
 
     def do_redo(_evt: Any = None) -> None:
-        if ui["animating"]:
+        if _locked():
             return
         mv = controller.redo()
         if mv is not None:
@@ -249,9 +316,9 @@ def run_rubiks_cube() -> None:
         ("Trainer", do_toggle_trainer),
     ]
     buttons = []  # keep refs alive
-    width = 0.14
+    width = 0.115
     for idx, (label, cb) in enumerate(button_specs):
-        bx = 0.03 + idx * (width + 0.005)
+        bx = 0.26 + idx * (width + 0.005)
         bax = fig.add_axes((bx, 0.03, width, 0.055))
         btn = Button(bax, label, color="#23272E", hovercolor="#30353D")
         btn.label.set_color("#F2F2F2")
@@ -277,7 +344,7 @@ def run_rubiks_cube() -> None:
         elif key == "t":
             do_toggle_trainer()
         elif key == "?":
-            help_box.set_visible(not help_box.get_visible())
+            controls_box.set_visible(not controls_box.get_visible())
             fig.canvas.draw_idle()
         elif key == "q":
             plt.close(fig)
@@ -287,7 +354,7 @@ def run_rubiks_cube() -> None:
     _refresh_hud()
     print("=" * 52)
     print("  Rubik's Cube — Interactive 3D")
-    print("  Press ? in the window for the full control list.")
+    print("  Controls are listed in the window (press ? to hide/show).")
     print("=" * 52)
     plt.show()
 
