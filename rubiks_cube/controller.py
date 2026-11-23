@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
+    from .cfop import Stage
     from .cube_state import CubeState
     from .moves import Move
 
@@ -133,6 +134,31 @@ class CubeController:
         from .solver import solve as _solve
 
         return _solve(self._state)
+
+    def solve_stages(self, method: str = "kociemba") -> list[Stage]:
+        """Compute a solution split into labelled stages.
+
+        Parameters
+        ----------
+        method : str
+            ``"kociemba"`` (shortest, one stage) or ``"cfop"`` (the speedcubing
+            method: cross, F2L, 2-look OLL, 2-look PLL).
+
+        Raises
+        ------
+        ImportError
+            For ``"kociemba"`` when the optional ``kociemba`` package is missing.
+        ValueError
+            If the cube is invalid or ``method`` is unknown.
+        """
+        from .cfop import Stage, solve_cfop
+
+        if method == "kociemba":
+            moves = self.solve()
+            return [Stage("KOCIEMBA", tuple(moves))] if moves else []
+        if method == "cfop":
+            return solve_cfop(self._state)
+        raise ValueError(f"unknown solve method: {method!r}")
 
     def apply_solution(self, solution: list[Move]) -> None:
         """Apply a solution sequence to the cube, recording it in history."""

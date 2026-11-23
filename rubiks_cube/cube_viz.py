@@ -6,7 +6,9 @@ Ties together the engine (:mod:`rubiks_cube.controller`), the renderer
 
 - animated face turns,
 - on-screen buttons (Scramble / Solve / Reset / Undo / Redo / Trainer),
-- a solver that shows its move list in the window and animates it,
+- two solvers you can switch between (Kociemba: fewest moves; CFOP: the
+  speedcubing method with cross, F2L, 2-look OLL and 2-look PLL), which show
+  their moves in the window and animate them,
 - keyboard controls, always listed in a panel on the left of the window,
 - a live HUD (state, last move, move count, timer),
 - trainer mode: timed solves recorded to a persistent stats file with
@@ -28,6 +30,7 @@ from .session import SessionStore, scramble_of_the_day
 from .stats import Solve, SolveStats
 
 if TYPE_CHECKING:  # pragma: no cover
+    from .cfop import Stage
     from .moves import Move
 
 # Keyboard: key -> move notation. Lowercase = CW, mapped set = CCW.
@@ -58,6 +61,8 @@ _CONTROLS_TEXT = (
     "\n"
     "  s      scramble\n"
     "  space  solve (shows moves)\n"
+    "  m      switch solver\n"
+    "         (Kociemba / CFOP)\n"
     "  z      undo\n"
     "  y      redo\n"
     "  t      trainer on/off\n"
@@ -72,6 +77,8 @@ _CONTROLS_TEXT = (
     "the timer stops when you solve\n"
     "it. Using Solve does not count."
 )
+
+_METHOD_NAMES = {"kociemba": "Kociemba", "cfop": "CFOP"}
 
 _SOLUTION_WRAP = 46  # characters per line in the on-screen solution box
 
@@ -140,6 +147,7 @@ def run_rubiks_cube() -> None:
         "last_move": "-",
         "animating": False,
         "busy": False,  # True for the whole solver playback
+        "method": "kociemba",  # or "cfop"
     }
 
     # --- helpers -----------------------------------------------------------
@@ -164,6 +172,7 @@ def run_rubiks_cube() -> None:
             )
         else:
             line2 = "\n(press t for trainer mode)"
+        line2 += f"  |  solver: {_METHOD_NAMES[ui['method']]}"
         hud.set_text(line1 + line2)
 
     def _redraw() -> None:
@@ -199,12 +208,30 @@ def run_rubiks_cube() -> None:
             return
         _play_move(move)
 
-    def _solution_text(names: list[str], done: int, note: str = "") -> str:
-        """Wrapped move list with the move being played marked in [brackets]."""
-        marked = [f"[{n}]" if i == done else n for i, n in enumerate(names)]
-        header = f"SOLUTION ({len(names)} moves, {min(done, len(names))} done)"
-        body = textwrap.fill(" ".join(marked), width=_SOLUTION_WRAP)
-        return header + "\n" + body + (f"\n{note}" if note else "")
+    def _solution_text(stages: list[Stage], done: int, note: str = "") -> str:
+        """Header plus the stage being played, its move marked in [brackets]."""
+        total = sum(len(st.moves) for st in stages)
+        method = _METHOD_NAMES[ui["method"]]
+        header = f"SOLUTION  {method}  {min(done, total)}/{total} moves"
+        left = done
+        for st in stages:
+            if left < len(st.moves):
+                marked = [
+                    f"[{m.value}]" if i == left else m.value
+                    for i, m in enumerate(st.moves)
+                ]
+                body = textwrap.fill(" ".join(marked), width=_SOLUTION_WRAP)
+                return f"{header}\n{st.name}:\n{body}"
+            left -= len(st.moves)
+        return header + (f"\n{note}" if note else "")
+
+    def _stage_summary(stages: list[Stage]) -> str:
+        """Moves per stage group, e.g. ``CROSS 6 | F2L 29 | OLL 10 | PLL 14``."""
+        counts: dict[str, int] = {}
+        for st in stages:
+            key = st.name.split()[0]
+            counts[key] = counts.get(key, 0) + len(st.moves)
+        return " | ".join(f"{k} {v}" for k, v in counts.items())
 
     def _record_solve_if_done() -> None:
         if ui["timer_start"] is not None and controller.is_solved():
@@ -244,7 +271,7 @@ def run_rubiks_cube() -> None:
         if _locked() or controller.is_solved():
             return
         try:
-            solution = controller.solve()
+            stages = controller.solve_stages(ui["method"])
         except ImportError:
             msg = "Solver unavailable. Install with: pip install kociemba"
             print(msg)
@@ -256,19 +283,27 @@ def run_rubiks_cube() -> None:
             solution_box.set_text(f"Cannot solve: {exc}")
             fig.canvas.draw_idle()
             return
-        names = [m.value for m in solution]
-        print(f"Solution ({len(solution)} moves): {move_to_string(solution)}")
+        flat = [mv for st in stages for mv in st.moves]
+        method = _METHOD_NAMES[ui["method"]]
+        print(f"Solution ({method}, {len(flat)} moves):")
+        for st in stages:
+            print(f"  {st.name}: {move_to_string(list(st.moves))}")
         # A solver-made solve never counts as a timed attempt.
         ui["timer_start"] = None
         ui["busy"] = True
         try:
-            for i, mv in enumerate(solution):
+            for i, mv in enumerate(flat):
                 if not plt.fignum_exists(fig.number):
                     return
-                solution_box.set_text(_solution_text(names, i))
+                solution_box.set_text(_solution_text(stages, i))
                 _play_move(mv)
+            summary = _stage_summary(stages) if len(stages) > 1 else ""
             solution_box.set_text(
-                _solution_text(names, len(names), "Solved! (not timed)")
+                _solution_text(
+                    stages,
+                    len(flat),
+                    f"Solved! (not timed)\n{summary}".strip(),
+                )
             )
         finally:
             ui["busy"] = False
@@ -300,6 +335,16 @@ def run_rubiks_cube() -> None:
             ui["last_move"] = f"redo {mv.value}"
             _redraw()
 
+    def do_toggle_method(_evt: Any = None) -> None:
+        if _locked():
+            return
+        ui["method"] = "cfop" if ui["method"] == "kociemba" else "kociemba"
+        name = _METHOD_NAMES[ui["method"]]
+        method_button.label.set_text(f"Solver: {name}")
+        print(f"Solver: {name}")
+        _refresh_hud()
+        fig.canvas.draw_idle()
+
     def do_toggle_trainer(_evt: Any = None) -> None:
         ui["trainer"] = not ui["trainer"]
         print(f"Trainer mode: {'ON' if ui['trainer'] else 'off'}")
@@ -314,9 +359,10 @@ def run_rubiks_cube() -> None:
         ("Undo", do_undo),
         ("Redo", do_redo),
         ("Trainer", do_toggle_trainer),
+        ("Solver: Kociemba", do_toggle_method),
     ]
     buttons = []  # keep refs alive
-    width = 0.115
+    width = 0.1
     for idx, (label, cb) in enumerate(button_specs):
         bx = 0.26 + idx * (width + 0.005)
         bax = fig.add_axes((bx, 0.03, width, 0.055))
@@ -324,6 +370,8 @@ def run_rubiks_cube() -> None:
         btn.label.set_color("#F2F2F2")
         btn.on_clicked(cb)
         buttons.append(btn)
+    method_button = buttons[-1]
+    method_button.label.set_fontsize(8)
 
     # --- keyboard ----------------------------------------------------------
     def on_key(event: Any) -> None:
@@ -343,6 +391,8 @@ def run_rubiks_cube() -> None:
             do_redo()
         elif key == "t":
             do_toggle_trainer()
+        elif key == "m":
+            do_toggle_method()
         elif key == "?":
             controls_box.set_visible(not controls_box.get_visible())
             fig.canvas.draw_idle()

@@ -43,6 +43,7 @@ The controls are always listed in a panel on the left of the window (press **`?`
 | `i k j ; h n` | Counter-clockwise (U' D' L' R' F' B') | | `space` | Solve |
 | `z` | Undo | | `y` | Redo |
 | `t` | Toggle trainer mode | | `?` | Hide/show the controls panel |
+| `m` | Switch solver (Kociemba / CFOP) | | | |
 | `q` | Quit | | mouse drag | Rotate the 3D view |
 
 On-screen buttons (**Scramble / Solve / Reset / Undo / Redo / Trainer**) mirror
@@ -50,10 +51,32 @@ the keyboard actions.
 
 ## Solve
 
-**Solve** (`space`) finds a solution with the Kociemba solver, shows the move
-list in the window, and plays the moves on the cube one at a time with the
-current move in `[brackets]`. The list is also printed to the terminal. A solve
-made this way is never timed or saved to your trainer stats.
+**Solve** (`space`) solves the cube from wherever it is. It shows the move list in
+the window and plays the moves one at a time with the current move in
+`[brackets]`. The full list is also printed to the terminal. A solve made this
+way is never timed or saved to your trainer stats.
+
+Pick the solving method with the **Solver** button or the **`m`** key:
+
+| Solver | What it does | Typical length |
+|--------|--------------|----------------|
+| **Kociemba** (default) | Two-phase algorithm; near-shortest solution. Needs `pip install -e ".[solver]"`. | about 20 moves |
+| **CFOP** | The speedcubing method, step by step (see below). No extra install. | about 55 to 90 moves |
+
+### CFOP steps
+
+1. **CROSS**: the four bottom (D) edges, found optimally.
+2. **F2L**: the four corner+edge pairs of the first two layers, one pair at a
+   time (the pair that needs the fewest moves goes first). Each pair is found by
+   search, keeping the cross and earlier pairs intact, so the moves are valid and
+   human-like but are not always the textbook F2L algorithms.
+3. **OLL (2-look)**: first orient the top edges, then the top corners, with the
+   standard algorithms (Sune, Anti-Sune, H, Pi, U, T, L, and two edge algorithms).
+4. **PLL (2-look)**: first place the top corners, then the top edges (with a final
+   U turn), using T, Y, Ja, Ua, Ub, H and Jb permutations.
+
+The window shows the current stage name above the moves, and a per-stage move
+count when the solve finishes.
 
 ## Trainer mode
 
@@ -73,7 +96,8 @@ rubiks_cube/
 ├── validation.py   # Solvability checker
 ├── scrambler.py    # WCA-style random scrambles
 ├── timer.py        # Solve timer
-├── solver.py       # Optional Kociemba wrapper
+├── solver.py       # Optional Kociemba wrapper (shortest solution)
+├── cfop.py         # CFOP solver: cross, F2L, 2-look OLL, 2-look PLL
 ├── render.py       # CubeRenderer: 3D drawing + turn animation
 ├── controller.py   # State + undo/redo/scramble/reset/solve (GUI-free logic)
 ├── stats.py        # SolveStats: ao5/ao12/best, DNF, JSON (pure-Python)
